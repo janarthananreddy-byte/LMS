@@ -5,31 +5,35 @@ ARG PAYMENTS_BRANCH=version-15
 ARG LMS_REPO=https://github.com/janarthananreddy-byte/LMS.git
 ARG LMS_BRANCH=main
 
+# Install Redis as root
+USER root
+RUN apt-get update && apt-get install -y redis-server && rm -rf /var/lib/apt/lists/*
+
 USER frappe
 WORKDIR /home/frappe
 
 # Initialize bench
 RUN bench init \
     --frappe-branch=${FRAPPE_BRANCH} \
-    --skip-redis-config-generation \
-    --skip-assets \
-    frappe-bench
+	    --skip-redis-config-generation \
+		    --skip-assets \
+			    frappe-bench
 
-WORKDIR /home/frappe/frappe-bench
+				WORKDIR /home/frappe/frappe-bench
 
-# Get payments app (dependency)
-RUN bench get-app --branch=${PAYMENTS_BRANCH} payments
+				# Get payments app (dependency)
+				RUN bench get-app --branch=${PAYMENTS_BRANCH} payments
 
-# Get LMS app from your repo
-RUN bench get-app --branch=${LMS_BRANCH} lms ${LMS_REPO}
+				# Get LMS app from your repo
+				RUN bench get-app --branch=${LMS_BRANCH} lms ${LMS_REPO}
 
-# Build assets
-RUN bench build
+				# Build assets
+				RUN bench build
 
-# Copy the entrypoint script
-COPY --chown=frappe:frappe entrypoint.sh /home/frappe/frappe-bench/entrypoint.sh
-RUN chmod +x /home/frappe/frappe-bench/entrypoint.sh
+				# Copy the entrypoint script
+				COPY --chown=frappe:frappe entrypoint.sh /home/frappe/frappe-bench/entrypoint.sh
+				RUN chmod +x /home/frappe/frappe-bench/entrypoint.sh
 
-EXPOSE 8000
+				EXPOSE 8000
 
-ENTRYPOINT ["/home/frappe/frappe-bench/entrypoint.sh"]
+				ENTRYPOINT ["/home/frappe/frappe-bench/entrypoint.sh"]
