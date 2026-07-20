@@ -21,8 +21,9 @@ bench set-config -g redis_socketio "redis://${REDIS_HOST:-localhost}:${REDIS_POR
 bench set-config -g socketio_port 9000
 
 # Set root_login to the DB user (Railway uses 'railway' user, not 'root')
+# Use DB_PASSWORD (railway user's password) since root_login is the railway user
 bench set-config -g root_login "${DB_USER:-root}"
-bench set-config -g root_password "${DB_ROOT_PASSWORD:-${DB_PASSWORD}}"
+bench set-config -g root_password "${DB_PASSWORD}"
 
 # Set developer mode if needed
 if [ "${DEVELOPER_MODE}" = "1" ]; then
@@ -31,12 +32,22 @@ fi
 
 SITE_NAME="${SITE_NAME:-lms.localhost}"
 
+# Remove stale site directory if it exists but database doesn't
+# This handles the case where a previous site creation failed mid-way
+if [ -d "sites/${SITE_NAME}" ]; then
+    echo "Site directory exists, checking if database is accessible..."
+    if ! bench --site "${SITE_NAME}" mariadb -e "SELECT 1" 2>/dev/null; then
+        echo "Database not accessible, removing stale site directory..."
+        rm -rf "sites/${SITE_NAME}"
+    fi
+fi
+
 # Check if the site already exists
 if [ ! -d "sites/${SITE_NAME}" ]; then
     echo "Creating new site: ${SITE_NAME}"
 
     bench new-site "${SITE_NAME}" \
-        --mariadb-root-password="${DB_ROOT_PASSWORD:-${DB_PASSWORD}}" \
+        --mariadb-root-password="${DB_PASSWORD}" \
         --admin-password="${ADMIN_PASSWORD:-admin}" \
         --no-mariadb-socket \
         --db-name="${DB_NAME:-_lms}" \
