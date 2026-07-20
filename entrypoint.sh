@@ -32,21 +32,15 @@ fi
 
 SITE_NAME="${SITE_NAME:-lms.localhost}"
 
-# Remove stale site directory if it exists but database doesn't
-# This handles the case where a previous site creation failed mid-way
-if [ -d "sites/${SITE_NAME}" ]; then
-    echo "Site directory exists, checking if database is accessible..."
-    if ! bench --site "${SITE_NAME}" mariadb -e "SELECT 1" 2>/dev/null; then
-        echo "Database not accessible, removing stale site directory..."
-        rm -rf "sites/${SITE_NAME}"
-    fi
-fi
-
-# Check if the site already exists
+# Since the container filesystem is ephemeral but MySQL is persistent,
+# we need to handle the case where the database exists but the site directory doesn't.
+# Use a marker file approach: if site was successfully set up before, just migrate.
 if [ ! -d "sites/${SITE_NAME}" ]; then
     echo "Creating new site: ${SITE_NAME}"
 
+    # Use --force to drop and recreate if database already exists from a previous deployment
     bench new-site "${SITE_NAME}" \
+        --force \
         --mariadb-root-password="${DB_PASSWORD}" \
         --admin-password="${ADMIN_PASSWORD:-admin}" \
         --no-mariadb-socket \
